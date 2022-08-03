@@ -73,6 +73,32 @@ impl SATSolver {
         return cnf;
     }
 
+    pub fn normalize_cnf(mut cnf: CNF) -> CNF {
+        let clauses: &mut Vec<Vec<Literal>> = cnf.get_clauses();
+        let mut index: usize = 0;
+        while index != clauses.len() {
+            let clause: &mut Vec<Literal> = &mut clauses[index];
+            let mut known_literals = HashSet::<Literal>::new();
+            let mut true_clause = false;
+
+            for literal in clause {
+                if known_literals.contains(&Self::get_negative_literal(&literal)) {
+                    true_clause = true;
+                    break;
+                }
+                known_literals.insert(literal.clone());
+            }
+
+            if true_clause {
+                clauses.swap_remove(index);
+                continue;
+            } 
+            index += 1;
+        }
+
+        cnf
+    }
+
     fn solve(mut cnf: CNF) -> (bool, CNF) {
         cnf = Self::unit_propagation(cnf);
 
