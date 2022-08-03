@@ -99,8 +99,48 @@ impl SATSolver {
         cnf
     }
 
+    pub fn pure_literal_ellimination(mut cnf: CNF) -> CNF {
+        let clauses: &mut Vec<Vec<Literal>> = cnf.get_clauses();
+        let mut known_literals = HashSet::<Literal>::new();
+        let mut ellimination_whitelist = HashSet::<Literal>::new();
+
+        for clause in clauses.iter() {
+            for literal in clause {
+                if known_literals.contains(&Self::get_negative_literal(&literal)) {
+                    ellimination_whitelist.insert(literal.clone());
+                    ellimination_whitelist.insert(Self::get_negative_literal(literal));
+                } else {
+                    known_literals.insert(literal.clone());
+                }
+            }
+        }
+
+        let mut index: usize = 0;
+        while index != clauses.len() {
+            let clause: &mut Vec<Literal> = &mut clauses[index];
+            let mut elliminate = false;
+
+            for literal in clause {
+                if !ellimination_whitelist.contains(&literal) {
+                    elliminate = true;
+                    break;
+                }
+            }
+
+            if elliminate {
+                clauses.swap_remove(index);
+                continue;
+            }
+
+            index += 1;
+        }
+
+        cnf
+    }
+
     fn solve(mut cnf: CNF) -> (bool, CNF) {
         cnf = Self::unit_propagation(cnf);
+        cnf = Self::normalize_cnf(cnf);
 
         (true, cnf)
     }
