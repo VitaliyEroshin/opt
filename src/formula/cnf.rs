@@ -263,13 +263,16 @@ impl SATSolver {
 
     #[allow(dead_code)]
     pub fn solve_davis_putnam(mut cnf: CNF) -> (bool, CNF) {
+        let mut eval_set = Vec::<Literal>::new();
         loop {
-            let mut eval_set = Vec::<Literal>::new();
             println!("New iteration, cnf size is {}", cnf.get_clauses().len());
             (cnf, eval_set) = Self::unit_propagation(cnf, eval_set);
             cnf = Self::normalize_cnf(cnf);
             (cnf, eval_set) = Self::pure_literal_ellimination(cnf, eval_set);
             if cnf.get_clauses().is_empty() {
+                for literal in eval_set {
+                    cnf.add_clause(vec![literal]);
+                }
                 return (true, cnf);
             }
 
