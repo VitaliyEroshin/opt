@@ -66,7 +66,7 @@ impl SATSolver {
         let clauses: &mut HashSet<Vec<Literal>> = cnf.get_clauses();
 
         for clause in clauses.iter() {
-            if Self::is_unit_clause(&clause) {
+            if Self::is_unit_clause(&clause) && !unit_clauses.contains(&clause[0].neg()) {
                 unit_clauses.insert(clause[0].clone());
             }
         }
@@ -74,7 +74,7 @@ impl SATSolver {
         let mut removed_clauses = HashSet::<Vec<Literal>>::new();
         let mut add_clauses = HashSet::<Vec<Literal>>::new();
         for clause in clauses.iter() {
-            if Self::is_unit_clause(&clause) {
+            if Self::is_unit_clause(&clause) && unit_clauses.contains(&clause[0]) {
                 removed_clauses.insert(clause.clone());
                 continue;
             }
@@ -284,12 +284,7 @@ impl SATSolver {
             return (false, cnf);
         }
         
-        let l;
-
-        match cnf.get_literal() {
-            Some(literal) => l = literal,
-            None => return (true, cnf),
-        }
+        let l = cnf.get_literal().unwrap();
 
         let on_true = Self::evaluate_on_literal(&mut cnf, l);
         let on_false = Self::evaluate_on_literal(&mut cnf, l.neg());
