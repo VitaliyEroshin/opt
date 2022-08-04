@@ -1,1 +1,1 @@
-# prop-logic
+# Logic elements implemented with Rust lang
