@@ -45,7 +45,14 @@ fn get_cnf_from_file() -> CNF {
 }
 
 fn main() {
-    let cnf = get_benchmark_cnf(25, 400, 4);
-    let (res, _cnf) = SATSolver::solve(cnf);
-    println!("{:?}", res);
+    let cnf = get_benchmark_cnf(10, 10, 3);
+    let res = SATSolver::solve(cnf);
+    match res {
+        Some(mut solution) => {
+            println!("Solution: {:?}", solution.get_clauses());
+        }
+        None => {
+            println!("No solution");
+        }
+    }
 }

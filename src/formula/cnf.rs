@@ -85,7 +85,7 @@ impl SATSolver {
         return clause.len() == 1;
     }
 
-    pub fn unit_propagation(mut cnf: CNF) -> CNF {
+    pub fn unit_propagation(mut cnf: CNF, mut eval_set: Vec<Literal>) -> (CNF, Vec<Literal>) {
         let mut unit_clauses = HashSet::<Literal>::new();
         let clauses: &mut HashSet<Vec<Literal>> = cnf.get_clauses();
 
@@ -100,6 +100,7 @@ impl SATSolver {
         for clause in clauses.iter() {
             if Self::is_unit_clause(&clause) && unit_clauses.contains(&clause[0]) {
                 removed_clauses.insert(clause.clone());
+                eval_set.push(clause[0].clone());
                 continue;
             }
 
@@ -124,7 +125,7 @@ impl SATSolver {
             clauses.insert(clause);
         }
         
-        return cnf;
+        return (cnf, eval_set);
     }
 
     pub fn normalize_cnf(mut cnf: CNF) -> CNF {
@@ -150,7 +151,7 @@ impl SATSolver {
         cnf
     }
 
-    pub fn pure_literal_ellimination(mut cnf: CNF) -> CNF {
+    pub fn pure_literal_ellimination(mut cnf: CNF, mut eval_set: Vec<Literal>) -> (CNF, Vec<Literal>) {
         let clauses: &mut HashSet<Vec<Literal>> = cnf.get_clauses();
         let mut known_literals = HashSet::<Literal>::new();
         let mut ellimination_whitelist = HashSet::<Literal>::new();
@@ -171,6 +172,7 @@ impl SATSolver {
             for literal in clause {
                 if !ellimination_whitelist.contains(&literal) {
                     removed_clauses.insert(clause.clone());
+                    eval_set.push(literal.clone());
                     break;
                 }
             }
@@ -180,7 +182,7 @@ impl SATSolver {
             clauses.remove(clause);
         }
 
-        cnf
+        (cnf, eval_set)
     }
 
     fn remove_literal(mut clause: Vec<Literal>, literal: &Literal) -> Vec<Literal> {
@@ -262,10 +264,11 @@ impl SATSolver {
     #[allow(dead_code)]
     pub fn solve_davis_putnam(mut cnf: CNF) -> (bool, CNF) {
         loop {
+            let mut eval_set = Vec::<Literal>::new();
             println!("New iteration, cnf size is {}", cnf.get_clauses().len());
-            cnf = Self::unit_propagation(cnf);
+            (cnf, eval_set) = Self::unit_propagation(cnf, eval_set);
             cnf = Self::normalize_cnf(cnf);
-            cnf = Self::pure_literal_ellimination(cnf);
+            (cnf, eval_set) = Self::pure_literal_ellimination(cnf, eval_set);
             if cnf.get_clauses().is_empty() {
                 return (true, cnf);
             }
@@ -298,11 +301,15 @@ impl SATSolver {
 
     pub fn solve_dpll(mut cnf: CNF) -> (bool, CNF) {
         println!("New iteration, cnf size is {}", cnf.get_clauses().len());
-        cnf = Self::unit_propagation(cnf);
+        let mut eval_set = Vec::<Literal>::new();
+        (cnf, eval_set) = Self::unit_propagation(cnf, eval_set);
         cnf = Self::normalize_cnf(cnf);
-        cnf = Self::pure_literal_ellimination(cnf);
+        (cnf, eval_set) = Self::pure_literal_ellimination(cnf, eval_set);
 
         if cnf.get_clauses().is_empty() {
+            for literal in eval_set {
+                cnf.add_clause(vec![literal]);
+            }
             return (true, cnf);
         }
 
@@ -320,6 +327,9 @@ impl SATSolver {
         (result, cnf) = Self::solve_dpll(cnf);
         if result {
             cnf.add_clause(vec![l]);
+            for literal in eval_set {
+                cnf.add_clause(vec![literal]);
+            }
             return (result, cnf);
         }
 
@@ -329,6 +339,9 @@ impl SATSolver {
         (result, cnf) = Self::solve_dpll(cnf);
         if result {
             cnf.add_clause(vec![l.neg()]);
+            for literal in eval_set {
+                cnf.add_clause(vec![literal]);
+            }
             return (result, cnf);
         }
 
@@ -351,8 +364,14 @@ impl SATSolver {
         (false, cnf)
     }
 
-    pub fn solve(cnf: CNF) -> (bool, CNF) {
-        Self::solve_dpll(cnf)
+    pub fn solve(mut cnf: CNF) -> Option<CNF> {
+        let SAT;
+        (SAT, cnf) = Self::solve_dpll(cnf);
+        if SAT {
+            Some(cnf)
+        } else {
+            None
+        }
     }
 
 }
