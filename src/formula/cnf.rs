@@ -35,6 +35,15 @@ impl CNF {
         return &mut self.clauses;
     }
 
+    pub fn get_literal(&self) -> Option<Literal> {
+        for clause in self.clauses.iter() {
+            if !clause.is_empty() {
+                return Some(clause[0]);
+            }
+        }
+        return None;
+    }
+
     pub fn has_empty_clause(&self) -> bool {
         for clause in self.clauses.iter() {
             if clause.is_empty() {
@@ -64,7 +73,7 @@ impl SATSolver {
 
         let mut removed_clauses = HashSet::<Vec<Literal>>::new();
         let mut add_clauses = HashSet::<Vec<Literal>>::new();
-        for mut clause in clauses.iter() {
+        for clause in clauses.iter() {
             if Self::is_unit_clause(&clause) {
                 removed_clauses.insert(clause.clone());
                 continue;
@@ -100,12 +109,10 @@ impl SATSolver {
         let mut removed_clauses = HashSet::<Vec<Literal>>::new();
         for clause in clauses.iter() {
             let mut known_literals = HashSet::<Literal>::new();
-            let mut true_clause = false;
 
             for literal in clause.iter() {
                 if known_literals.contains(&literal.neg()) {
                     removed_clauses.insert(clause.clone());
-                    true_clause = true;
                     break;
                 }
                 known_literals.insert(literal.clone());
@@ -156,7 +163,7 @@ impl SATSolver {
         let mut index: usize = 0;
         while index != clause.len() {
             if clause[index] == *literal {
-                clause.swap_remove(index);
+                clause.remove(index);
                 return clause;
             }
             index += 1;
@@ -228,7 +235,8 @@ impl SATSolver {
         cnf
     }
 
-    pub fn solve(mut cnf: CNF) -> (bool, CNF) {
+    #[allow(dead_code)]
+    pub fn solve_davis_putnam(mut cnf: CNF) -> (bool, CNF) {
         loop {
             println!("New iteration, cnf size is {}", cnf.get_clauses().len());
             cnf = Self::unit_propagation(cnf);
@@ -243,6 +251,60 @@ impl SATSolver {
             }
             cnf = Self::davis_putnam_procedure(cnf);
         }
+    }
+
+    pub fn evaluate_on_literal(cnf: &mut CNF, l: Literal) -> CNF {
+        let mut new_cnf = CNF::new();
+        for clause in cnf.get_clauses().iter() {
+            if clause.contains(&l) {
+                continue;
+            } else if clause.contains(&l.neg()) {
+                let mut new_clause = clause.clone();
+                new_clause = Self::remove_literal(new_clause, &l.neg());
+                new_cnf.add_clause(new_clause);
+            } else {
+                new_cnf.add_clause(clause.clone());
+            }
+        }
+
+        new_cnf
+    }
+
+    pub fn solve_dpll(mut cnf: CNF) -> (bool, CNF) {
+        println!("New iteration, cnf size is {}", cnf.get_clauses().len());
+        cnf = Self::unit_propagation(cnf);
+        cnf = Self::normalize_cnf(cnf);
+        cnf = Self::pure_literal_ellimination(cnf);
+
+        if cnf.get_clauses().is_empty() {
+            return (true, cnf);
+        }
+
+        if cnf.has_empty_clause() {
+            return (false, cnf);
+        }
+        
+        let l;
+
+        match cnf.get_literal() {
+            Some(literal) => l = literal,
+            None => return (true, cnf),
+        }
+
+        let on_true = Self::evaluate_on_literal(&mut cnf, l);
+        let on_false = Self::evaluate_on_literal(&mut cnf, l.neg());
+
+        let (on_true_result, _on_true_cnf) = Self::solve_dpll(on_true);
+        if on_true_result {
+            return (true, cnf);
+        }
+
+        let (on_false_result, _on_false_cnf) = Self::solve_dpll(on_false);
+        (on_false_result, cnf)
+    }
+
+    pub fn solve(cnf: CNF) -> (bool, CNF) {
+        Self::solve_dpll(cnf)
     }
 
 }
