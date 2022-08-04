@@ -70,16 +70,15 @@ fn get_cnf_from_file() -> CNF {
 
             clause.push(Literal {var: literal as usize, sign: sign});
         }
-        clause.pop();
         cnf.add_clause(clause);
     }
     cnf
 }
 
 fn main() {
-    unit_propagation_test();
-    normalization_test();
-    pure_literal_ellimination_test();
+    // unit_propagation_test();
+    // normalization_test();
+    // pure_literal_ellimination_test();
 
     let mut cnf = get_cnf_from_file();
     let (res, cnf) = SATSolver::solve(cnf);

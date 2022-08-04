@@ -26,7 +26,8 @@ impl CNF {
         }
     }
 
-    pub fn add_clause(&mut self, clause: Vec<Literal>) {
+    pub fn add_clause(&mut self, mut clause: Vec<Literal>) {
+        clause.sort();
         self.clauses.insert(clause);
     }
 
@@ -85,7 +86,8 @@ impl SATSolver {
             clauses.remove(clause);
         }
 
-        for clause in add_clauses.into_iter() {
+        for mut clause in add_clauses.into_iter() {
+            clause.sort();
             clauses.insert(clause);
         }
         
@@ -210,8 +212,16 @@ impl SATSolver {
             for clause in removed_clauses.iter() {
                 clauses.remove(clause);
             }
-            for clause in new_clauses.iter() {
+
+            let mut inserted = false;
+            for mut clause in new_clauses.into_iter() {
+                clause.sort();
                 clauses.insert(clause.clone());
+                inserted = true;
+            }
+
+            if inserted {
+                break;
             }
         }
 
