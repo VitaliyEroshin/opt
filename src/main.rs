@@ -1,58 +1,26 @@
 mod formula;
 use crate::formula::cnf::{CNF, SATSolver, Literal};
-use std::collections::HashSet;
-
-fn print_cnf(cnf: &mut CNF) {
-    let clauses = cnf.get_clauses();
-    for clause in clauses.iter() {
-        println!("{:?}", clause);
-    }
-}
-
-fn unit_propagation_test() {
-    let mut cnf = CNF::new();
-    cnf.add_clause(vec![Literal { var: 0, sign: true }]);
-    cnf.add_clause(vec![Literal { var: 1, sign: true }]);
-    cnf.add_clause(vec![Literal { var: 2, sign: true }, Literal {var: 0, sign: false}]);
-
-    
-    cnf = SATSolver::unit_propagation(cnf);
-
-    let result: Vec<_> = cnf.get_clauses().clone().into_iter().collect();
-    assert_eq!(result, vec![vec![Literal { var: 2, sign: true}]]);
-    println!("Unit propagation test passed!");
-}
-
-fn normalization_test() {
-    let mut cnf = CNF::new();
-    cnf.add_clause(vec![Literal { var: 0, sign: true }]);
-    cnf.add_clause(vec![Literal { var: 1, sign: true }, Literal { var: 1, sign: false}]);
-    cnf.add_clause(vec![Literal { var: 2, sign: true }, Literal {var: 0, sign: false}]);
-    
-    cnf = SATSolver::normalize_cnf(cnf);
-
-    let result: Vec<_> = cnf.get_clauses().clone().into_iter().collect();
-    assert_eq!(result, vec![
-        vec![Literal { var: 0, sign: true }],
-        vec![Literal { var: 2, sign: true }, Literal { var: 0, sign: false }]
-    ]);
-}
-
-fn pure_literal_ellimination_test() {
-    let mut cnf = CNF::new();
-    cnf.add_clause(vec![Literal {var: 0, sign: true}]);
-    cnf.add_clause(vec![Literal {var: 0, sign: false}, Literal {var: 1, sign: true}]);
-
-    cnf = SATSolver::pure_literal_ellimination(cnf);
-
-    let result: Vec<_> = cnf.get_clauses().clone().into_iter().collect();
-    assert_eq!(result, vec![vec![Literal {var: 0, sign: true}]]);
-}
-
 
 use std::io::{self, BufRead};
 use std::fs::File;
+use rand::Rng;
 
+fn get_benchmark_cnf(variables: usize, clauses: usize, var_in_clauses: usize) -> CNF {
+    let mut cnf = CNF::new();
+    for _ in 0..clauses {
+        let mut clause = Vec::new();
+        for _ in 0..var_in_clauses {
+            let mut rng = rand::thread_rng();
+            let var = rng.gen_range(0..variables);
+            let sign = rng.gen();
+            clause.push(Literal { var, sign });
+        }
+        cnf.add_clause(clause);
+    }
+    return cnf;
+}
+
+#[allow(dead_code)]
 fn get_cnf_from_file() -> CNF {
     let file = File::open("./test.txt").unwrap();
     let reader = io::BufReader::new(file);
@@ -77,11 +45,14 @@ fn get_cnf_from_file() -> CNF {
 }
 
 fn main() {
-    unit_propagation_test();
-    normalization_test();
-    pure_literal_ellimination_test();
-
-    let mut cnf = get_cnf_from_file();
-    let (res, cnf) = SATSolver::solve(cnf);
-    println!("{:?}", res);
+    let cnf = get_benchmark_cnf(10, 10, 3);
+    let res = SATSolver::solve(cnf);
+    match res {
+        Some(mut solution) => {
+            println!("Solution: {:?}", solution.get_clauses());
+        }
+        None => {
+            println!("No solution");
+        }
+    }
 }
