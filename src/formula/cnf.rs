@@ -368,9 +368,9 @@ impl SATSolver {
     }
 
     pub fn solve(mut cnf: CNF) -> Option<CNF> {
-        let SAT;
-        (SAT, cnf) = Self::solve_dpll(cnf);
-        if SAT {
+        let sat;
+        (sat, cnf) = Self::solve_dpll(cnf);
+        if sat {
             Some(cnf)
         } else {
             None
