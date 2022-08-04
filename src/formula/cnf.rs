@@ -52,6 +52,30 @@ impl CNF {
         }
         return false;
     }
+
+    pub fn remove_clauses_with_literal(&mut self, l: Literal) {
+        let mut removed_clauses = Vec::new();
+        for clause in self.clauses.iter() {
+            if clause.contains(&l) || clause.contains(&l.neg()) {
+                removed_clauses.push(clause.clone());
+            }
+        }
+        for clause in removed_clauses {
+            self.clauses.remove(&clause);
+        }
+    }
+
+    pub fn remove_clauses(&mut self, clauses: &HashSet<Vec<Literal>>) {
+        for clause in clauses.iter() {
+            self.clauses.remove(clause);
+        }
+    }
+
+    pub fn add_clauses(&mut self, clauses: &HashSet<Vec<Literal>>) {
+        for clause in clauses.iter() {
+            self.clauses.insert(clause.clone());
+        }
+    }
 }
 
 pub struct SATSolver {}
@@ -253,21 +277,23 @@ impl SATSolver {
         }
     }
 
-    pub fn evaluate_on_literal(cnf: &mut CNF, l: Literal) -> CNF {
-        let mut new_cnf = CNF::new();
+    pub fn evaluate_on_literal(cnf: &mut CNF, l: Literal) -> (HashSet<Vec<Literal>>, HashSet<Vec<Literal>>) {
+        let mut true_value_clauses = HashSet::<Vec<Literal>>::new();
+        let mut false_value_clauses = HashSet::<Vec<Literal>>::new();
+
         for clause in cnf.get_clauses().iter() {
             if clause.contains(&l) {
-                continue;
+                let mut new_clause = clause.clone();
+                new_clause = Self::remove_literal(new_clause, &l);
+                true_value_clauses.insert(new_clause);
             } else if clause.contains(&l.neg()) {
                 let mut new_clause = clause.clone();
                 new_clause = Self::remove_literal(new_clause, &l.neg());
-                new_cnf.add_clause(new_clause);
-            } else {
-                new_cnf.add_clause(clause.clone());
+                false_value_clauses.insert(new_clause);
             }
         }
 
-        new_cnf
+        return (true_value_clauses, false_value_clauses);
     }
 
     pub fn solve_dpll(mut cnf: CNF) -> (bool, CNF) {
@@ -286,16 +312,43 @@ impl SATSolver {
         
         let l = cnf.get_literal().unwrap();
 
-        let on_true = Self::evaluate_on_literal(&mut cnf, l);
-        let on_false = Self::evaluate_on_literal(&mut cnf, l.neg());
+        let (true_value_clauses, false_value_clauses) = Self::evaluate_on_literal(&mut cnf, l);
+        cnf.remove_clauses_with_literal(l);
+        cnf.add_clauses(&false_value_clauses);
+        let mut result;
 
-        let (on_true_result, _on_true_cnf) = Self::solve_dpll(on_true);
-        if on_true_result {
-            return (true, cnf);
+        (result, cnf) = Self::solve_dpll(cnf);
+        if result {
+            cnf.add_clause(vec![l]);
+            return (result, cnf);
         }
 
-        let (on_false_result, _on_false_cnf) = Self::solve_dpll(on_false);
-        (on_false_result, cnf)
+        cnf.remove_clauses(&false_value_clauses);
+        cnf.add_clauses(&true_value_clauses);
+
+        (result, cnf) = Self::solve_dpll(cnf);
+        if result {
+            cnf.add_clause(vec![l.neg()]);
+            return (result, cnf);
+        }
+
+        cnf.remove_clauses(&true_value_clauses);
+        cnf.remove_clauses(&false_value_clauses);
+
+        for clause in true_value_clauses {
+            let mut new_clause = clause.clone();
+            new_clause.push(l);
+            cnf.add_clause(new_clause)
+        }
+
+        for clause in false_value_clauses {
+            let mut new_clause = clause.clone();
+            new_clause.push(l.neg());
+            cnf.add_clause(new_clause)
+        }
+
+
+        (false, cnf)
     }
 
     pub fn solve(cnf: CNF) -> (bool, CNF) {
