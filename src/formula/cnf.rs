@@ -1,9 +1,17 @@
 use std::{collections::HashSet, mem::swap, hash::Hash};
+use std::fmt::{Debug};
 
-#[derive(Eq, Hash, PartialEq, Clone, Copy, Debug, PartialOrd, Ord)]
+#[derive(Eq, Hash, PartialEq, Clone, Copy, PartialOrd, Ord)]
 pub struct Literal {
     pub var: usize,
     pub sign: bool,
+}
+
+impl Debug for Literal {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", if self.sign { "-" } else { "" })?;
+        write!(f, "{}", self.var)
+    }
 }
 
 impl Literal {
@@ -28,6 +36,7 @@ impl CNF {
 
     pub fn add_clause(&mut self, mut clause: Vec<Literal>) {
         clause.sort();
+        clause.dedup();
         self.clauses.insert(clause);
     }
 
@@ -35,7 +44,7 @@ impl CNF {
         return &mut self.clauses;
     }
 
-    pub fn get_literal(&self) -> Option<Literal> {
+    pub fn get_any_literal(&self) -> Option<Literal> {
         for clause in self.clauses.iter() {
             if !clause.is_empty() {
                 return Some(clause[0]);
@@ -144,10 +153,7 @@ impl SATSolver {
             }
         }
 
-        for clause in removed_clauses.iter() {
-            clauses.remove(clause);
-        }
-
+        cnf.remove_clauses(&removed_clauses);
         cnf
     }
 
@@ -178,9 +184,7 @@ impl SATSolver {
             }
         }
 
-        for clause in removed_clauses.iter() {
-            clauses.remove(clause);
-        }
+        cnf.remove_clauses(&removed_clauses);
 
         (cnf, eval_set)
     }
@@ -242,12 +246,12 @@ impl SATSolver {
                 }
             }
 
-            for clause in removed_clauses.iter() {
-                clauses.remove(clause);
+            for clause in removed_clauses {
+                clauses.remove(&clause);
             }
 
             let mut inserted = false;
-            for mut clause in new_clauses.into_iter() {
+            for mut clause in new_clauses {
                 clause.sort();
                 clauses.insert(clause.clone());
                 inserted = true;
@@ -265,7 +269,6 @@ impl SATSolver {
     pub fn solve_davis_putnam(mut cnf: CNF) -> (bool, CNF) {
         let mut eval_set = Vec::<Literal>::new();
         loop {
-            println!("New iteration, cnf size is {}", cnf.get_clauses().len());
             (cnf, eval_set) = Self::unit_propagation(cnf, eval_set);
             cnf = Self::normalize_cnf(cnf);
             (cnf, eval_set) = Self::pure_literal_ellimination(cnf, eval_set);
@@ -303,7 +306,6 @@ impl SATSolver {
     }
 
     pub fn solve_dpll(mut cnf: CNF) -> (bool, CNF) {
-        println!("New iteration, cnf size is {}", cnf.get_clauses().len());
         let mut eval_set = Vec::<Literal>::new();
         (cnf, eval_set) = Self::unit_propagation(cnf, eval_set);
         cnf = Self::normalize_cnf(cnf);
@@ -320,7 +322,7 @@ impl SATSolver {
             return (false, cnf);
         }
         
-        let l = cnf.get_literal().unwrap();
+        let l = cnf.get_any_literal().unwrap();
 
         let (true_value_clauses, false_value_clauses) = Self::evaluate_on_literal(&mut cnf, l);
         cnf.remove_clauses_with_literal(l);
@@ -370,10 +372,9 @@ impl SATSolver {
     pub fn solve(mut cnf: CNF) -> Option<CNF> {
         let sat;
         (sat, cnf) = Self::solve_dpll(cnf);
-        if sat {
-            Some(cnf)
-        } else {
-            None
+        match sat {
+            true => Some(cnf),
+            false => None,
         }
     }
 

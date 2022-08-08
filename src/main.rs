@@ -45,7 +45,7 @@ fn get_cnf_from_file() -> CNF {
 }
 
 fn main() {
-    let cnf = get_benchmark_cnf(10, 10, 3);
+    let cnf = get_benchmark_cnf(50, 200, 3);
     let res = SATSolver::solve(cnf);
     match res {
         Some(mut solution) => {
