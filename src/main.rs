@@ -46,6 +46,7 @@ fn get_cnf_from_file() -> CNF {
 }
 
 fn main() {
-    let p = PropositionalFormula::new("((1 and 2) or 3 or 4)".to_string());
+    let mut p = PropositionalFormula::new("(1 or not 3) and (4 or 6)".to_string());
     p.parse();
+    println!("{:?}", p.get_cnf().unwrap().get_clauses());
 }
