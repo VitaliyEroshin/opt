@@ -1,5 +1,6 @@
 mod formula;
 use crate::formula::cnf::{CNF, SATSolver, Literal};
+use crate::formula::propositional::{PropositionalFormula};
 
 use std::io::{self, BufRead};
 use std::fs::File;
@@ -45,14 +46,6 @@ fn get_cnf_from_file() -> CNF {
 }
 
 fn main() {
-    let cnf = get_benchmark_cnf(50, 200, 3);
-    let res = SATSolver::solve(cnf);
-    match res {
-        Some(mut solution) => {
-            println!("Solution: {:?}", solution.get_clauses());
-        }
-        None => {
-            println!("No solution");
-        }
-    }
+    let p = PropositionalFormula::new("((1 and 2) or 3 or 4)".to_string());
+    p.parse();
 }
