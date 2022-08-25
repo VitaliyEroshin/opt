@@ -180,7 +180,7 @@ impl PropositionalFormula {
                 while !found_opening_parenthesis {
                     let first = stack.last().unwrap().clone();
                     stack.pop();
-                    if (stack.last().unwrap().operation == "(".to_string()) {
+                    if stack.last().unwrap().operation == "(".to_string() {
                         stack.pop();
                         stack.push(first);
                         break;
@@ -224,17 +224,17 @@ impl PropositionalFormula {
     }
 
     pub fn get_cnf(&mut self) -> Option<CNF> {
-        if (self.tree.is_none()) {
+        if self.tree.is_none() {
             return None;
         }
 
         let mut cnf = CNF::new();
-        if (self.tree.as_ref().unwrap().operation != "and") {
+        if self.tree.as_ref().unwrap().operation != "and" {
             return None;
         }
 
         for child in self.tree.as_ref().unwrap().children.iter() {
-            if (child.operation != "or") {
+            if child.operation != "or" {
                 return None;
             }
             let mut clause = Vec::new();
