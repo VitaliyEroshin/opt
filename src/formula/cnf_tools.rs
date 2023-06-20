@@ -18,25 +18,47 @@ pub fn get_benchmark_cnf(variables: usize, clauses: usize, var_in_clauses: usize
     return cnf;
 }
 
-pub fn get_cnf_from_file(path: &str) -> CNF {
-    let file = File::open(path).unwrap();
+fn parse_clause_from_line(s: String) -> Result<Vec<Literal>, std::io::Error> {
+    let mut clause = Vec::new();
+
+    for lit in s.split(" ") {
+        match Literal::new(lit) {
+            Ok(l) => {
+                clause.push(l);
+            },
+            Err(_) => {
+                return Err(std::io::Error::new(
+                    io::ErrorKind::Other,
+                    "Failed to parse literal, must be signed integer"
+                ))
+            }
+        }
+    }
+    
+    Ok(clause)
+}
+
+fn read_cnf_from_buff<Stream: std::io::Read>(reader: io::BufReader<Stream>) -> Result<CNF, std::io::Error> {
+    let mut cnf = CNF::new();
+
+    for line in reader.lines() {
+        let s = line?;
+
+        cnf.add_clause(parse_clause_from_line(s)?);
+    }
+
+    Ok(cnf)
+}
+
+pub fn get_cnf_from_file(path: &str) -> Result<CNF, std::io::Error> {
+    let file = File::open(path)?;
     let reader = io::BufReader::new(file);
 
-    let mut cnf = CNF::new();
-    for line in reader.lines() {
-        let line = line.unwrap();
-        let mut clause = Vec::new();
-        for literal in line.split(" ") {
-            let mut literal = literal.parse::<i32>().unwrap();
-            let sign = literal < 0;
-            if sign {
-                literal = literal.abs();
-            }
+    read_cnf_from_buff(reader)
+}
 
-            clause.push(Literal {var: literal as usize, sign: sign});
-        }
-        clause.pop();
-        cnf.add_clause(clause);
-    }
-    cnf
+pub fn get_cnf_from_stdin() -> Result<CNF, std::io::Error> {
+    let reader = io::BufReader::new(io::stdin());
+
+    read_cnf_from_buff(reader)
 }

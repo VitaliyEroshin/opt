@@ -15,6 +15,14 @@ impl Debug for Literal {
 }
 
 impl Literal {
+    pub fn new(s: &str) -> Result<Literal, std::num::ParseIntError> {
+        let i = s.parse::<i32>()?;
+        Ok(Literal {
+            var: i.abs() as usize,
+            sign: i < 0,
+        })
+    }
+
     pub fn neg(&self) -> Literal {
         return Literal {
             var: self.var,
@@ -25,6 +33,43 @@ impl Literal {
 
 pub struct CNF {
     clauses: HashSet<Vec<Literal>>,
+}
+
+fn print_vec_with_separator(literals: &Vec<Literal>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let mut iter = literals.iter();
+
+    match iter.next() {
+        None => {}
+        Some(value) => {
+            write!(f, "{:?}", value)?
+        }
+    }
+
+    for value in iter {
+        write!(f, " {:?}", value)?
+    }
+
+    Ok(())
+}
+
+impl std::fmt::Display for CNF {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}\n", self.clauses.len())?;
+        let mut iter = self.clauses.iter();
+
+        match iter.next() {
+            None => {}
+            Some(clause) => {
+                print_vec_with_separator(clause, f)?;
+            }
+        }
+
+        for clause in iter {
+            write!(f, "\n")?;
+            print_vec_with_separator(clause, f)?;
+        }
+        Ok(())
+    }
 }
 
 impl CNF {

@@ -1,8 +1,16 @@
 mod formula;
-use formula::propositional::PropositionalFormula;
+// use formula::propositional::PropositionalFormula;
 
 fn main() {
-    let mut p = PropositionalFormula::new("(1 or not 3) and (4 or 6)".to_string());
-    p.parse();
-    println!("{:?}", p.get_cnf().unwrap().get_clauses());
+    let cnf = formula::cnf_tools::get_cnf_from_stdin();
+
+    match cnf {
+        Ok(cnf) => {
+            println!("{:}", cnf);
+        },
+        Err(err) => {
+            println!("Error occured while parsing CNF: {}", err.to_string());
+            return;
+        }
+    }
 }
