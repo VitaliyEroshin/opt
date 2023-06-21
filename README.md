@@ -1,6 +1,22 @@
 # Opt
 A little rust framework
 
+# How to run?
+This is a framework, you should not run it, lol!
+
+However, you can run some tests from `utils` folder.
+### SAT tests
+The SAT solving pipeline is located in `./src/bin/test_sat_solver.rs`, you can modify it if you want. Testing can be produced by running a python script, that reads and parses `.cnf` files in the `./utils/testcases` folder. It checks whether the algorithm found a proper evaluation set or not and prints the elapsed time.
+
+```shell
+# Assuming we are in the repository folder
+
+cd utils
+python3 main.py
+```
+
+Also, please, make sure, `cargo` is installed on your device.
+
 # Primitives
 ### `opt::p::sat::Literal`
 A trivially-copyable primitive that represents (*ha-ha*) a literal! Contains index of variable and whether it is negated or not. Literal can be represented as signed integer, where absolute value is an index of the variable, and sign is negation.
