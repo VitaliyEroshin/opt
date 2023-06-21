@@ -1,140 +1,104 @@
-use std::{collections::HashSet, mem::swap, hash::Hash};
-use std::fmt::{Debug};
+use std::collections::{HashSet};
+use std::mem::swap;
 
-#[derive(Eq, Hash, PartialEq, Clone, Copy, PartialOrd, Ord)]
-pub struct Literal {
-    pub var: usize,
-    pub sign: bool,
-}
+pub use super::solver::{Solver, Error};
+use crate::p::cnf::{CNF, Literal};
 
-impl Debug for Literal {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", if self.sign { "-" } else { "" })?;
-        write!(f, "{}", self.var)
-    }
-}
+pub struct DPLL {}
 
-impl Literal {
-    pub fn new(s: &str) -> Result<Literal, std::num::ParseIntError> {
-        let i = s.parse::<i32>()?;
-        Ok(Literal {
-            var: i.abs() as usize,
-            sign: i < 0,
-        })
-    }
-
-    pub fn neg(&self) -> Literal {
-        return Literal {
-            var: self.var,
-            sign: !self.sign,
-        };
-    }
-}
-
-pub struct CNF {
-    clauses: HashSet<Vec<Literal>>,
-}
-
-fn print_vec_with_separator(literals: &Vec<Literal>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let mut iter = literals.iter();
-
-    match iter.next() {
-        None => {}
-        Some(value) => {
-            write!(f, "{:?}", value)?
+impl Solver for DPLL {
+    fn solve(&self, cnf: CNF) -> Result<Vec<Literal>, Error> {
+        let (sat, mut cnf) = Self::solve_dpll(cnf);
+        
+        if !sat {
+            return Err(Error::new("Unsatisfiable"));
         }
-    }
 
-    for value in iter {
-        write!(f, " {:?}", value)?
-    }
+        let mut eval_set: Vec<Literal> = vec![];
 
-    Ok(())
+        // TODO: Could avoid cloning here?
+        for mut clause in cnf.get_clauses().clone().into_iter() {
+            eval_set.append(&mut clause);
+        }
+        
+        Ok(eval_set)
+    }
 }
 
-impl std::fmt::Display for CNF {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}\n", self.clauses.len())?;
-        let mut iter = self.clauses.iter();
+impl DPLL {
+    fn solve_dpll(mut cnf: CNF) -> (bool, CNF) {
+        let mut eval_set = Vec::<Literal>::new();
+        (cnf, eval_set) = Self::unit_propagation(cnf, eval_set);
+        cnf = Self::normalize_cnf(cnf);
+        (cnf, eval_set) = Self::pure_literal_ellimination(cnf, eval_set);
 
-        match iter.next() {
-            None => {}
-            Some(clause) => {
-                print_vec_with_separator(clause, f)?;
+        if cnf.get_clauses().is_empty() {
+            for literal in eval_set {
+                cnf.add_clause(vec![literal]);
+            }
+            return (true, cnf);
+        }
+
+        if cnf.has_empty_clause() {
+            return (false, cnf);
+        }
+        
+        let l: Literal;
+
+        match Self::get_any_literal(&mut cnf) {
+            None => {
+                return (false, cnf);
+            },
+            Some(literal) => {
+                l = literal;
             }
         }
 
-        for clause in iter {
-            write!(f, "\n")?;
-            print_vec_with_separator(clause, f)?;
-        }
-        Ok(())
-    }
-}
+        let (true_value_clauses, false_value_clauses) = Self::evaluate_on_literal(&mut cnf, l);
+        cnf.remove_clauses_with_literal(l);
+        cnf.add_clauses(&false_value_clauses);
+        let mut result;
 
-impl CNF {
-    pub fn new() -> CNF {
-        CNF {
-            clauses: HashSet::new(),
-        }
-    }
-
-    pub fn add_clause(&mut self, mut clause: Vec<Literal>) {
-        clause.sort();
-        clause.dedup();
-        self.clauses.insert(clause);
-    }
-
-    pub fn get_clauses(&mut self) -> &mut HashSet<Vec<Literal>> {
-        return &mut self.clauses;
-    }
-
-    pub fn get_any_literal(&self) -> Option<Literal> {
-        for clause in self.clauses.iter() {
-            if !clause.is_empty() {
-                return Some(clause[0]);
+        (result, cnf) = Self::solve_dpll(cnf);
+        if result {
+            cnf.add_clause(vec![l]);
+            for literal in eval_set {
+                cnf.add_clause(vec![literal]);
             }
+            return (result, cnf);
         }
-        return None;
-    }
 
-    pub fn has_empty_clause(&self) -> bool {
-        for clause in self.clauses.iter() {
-            if clause.is_empty() {
-                return true;
+        cnf.remove_clauses(&false_value_clauses);
+        cnf.add_clauses(&true_value_clauses);
+
+        (result, cnf) = Self::solve_dpll(cnf);
+        if result {
+            cnf.add_clause(vec![l.neg()]);
+            for literal in eval_set {
+                cnf.add_clause(vec![literal]);
             }
+            return (result, cnf);
         }
-        return false;
+
+        cnf.remove_clauses(&true_value_clauses);
+        cnf.remove_clauses(&false_value_clauses);
+
+        for clause in true_value_clauses {
+            let mut new_clause = clause.clone();
+            new_clause.push(l);
+            cnf.add_clause(new_clause)
+        }
+
+        for clause in false_value_clauses {
+            let mut new_clause = clause.clone();
+            new_clause.push(l.neg());
+            cnf.add_clause(new_clause)
+        }
+
+
+        (false, cnf)
     }
 
-    pub fn remove_clauses_with_literal(&mut self, l: Literal) {
-        let mut removed_clauses = Vec::new();
-        for clause in self.clauses.iter() {
-            if clause.contains(&l) || clause.contains(&l.neg()) {
-                removed_clauses.push(clause.clone());
-            }
-        }
-        for clause in removed_clauses {
-            self.clauses.remove(&clause);
-        }
-    }
-
-    pub fn remove_clauses(&mut self, clauses: &HashSet<Vec<Literal>>) {
-        for clause in clauses.iter() {
-            self.clauses.remove(clause);
-        }
-    }
-
-    pub fn add_clauses(&mut self, clauses: &HashSet<Vec<Literal>>) {
-        for clause in clauses.iter() {
-            self.clauses.insert(clause.clone());
-        }
-    }
-}
-
-pub struct SATSolver {}
-
-impl SATSolver {
     fn is_unit_clause(clause: &Vec<Literal>) -> bool {
         return clause.len() == 1;
     }
@@ -310,27 +274,6 @@ impl SATSolver {
         cnf
     }
 
-    #[allow(dead_code)]
-    pub fn solve_davis_putnam(mut cnf: CNF) -> (bool, CNF) {
-        let mut eval_set = Vec::<Literal>::new();
-        loop {
-            (cnf, eval_set) = Self::unit_propagation(cnf, eval_set);
-            cnf = Self::normalize_cnf(cnf);
-            (cnf, eval_set) = Self::pure_literal_ellimination(cnf, eval_set);
-            if cnf.get_clauses().is_empty() {
-                for literal in eval_set {
-                    cnf.add_clause(vec![literal]);
-                }
-                return (true, cnf);
-            }
-
-            if cnf.has_empty_clause() {
-                return (false, cnf);
-            }
-            cnf = Self::davis_putnam_procedure(cnf);
-        }
-    }
-
     pub fn evaluate_on_literal(cnf: &mut CNF, l: Literal) -> (HashSet<Vec<Literal>>, HashSet<Vec<Literal>>) {
         let mut true_value_clauses = HashSet::<Vec<Literal>>::new();
         let mut false_value_clauses = HashSet::<Vec<Literal>>::new();
@@ -350,77 +293,12 @@ impl SATSolver {
         return (true_value_clauses, false_value_clauses);
     }
 
-    pub fn solve_dpll(mut cnf: CNF) -> (bool, CNF) {
-        let mut eval_set = Vec::<Literal>::new();
-        (cnf, eval_set) = Self::unit_propagation(cnf, eval_set);
-        cnf = Self::normalize_cnf(cnf);
-        (cnf, eval_set) = Self::pure_literal_ellimination(cnf, eval_set);
-
-        if cnf.get_clauses().is_empty() {
-            for literal in eval_set {
-                cnf.add_clause(vec![literal]);
+    fn get_any_literal(c: &mut CNF) -> Option<Literal> {
+        for clause in c.get_clauses().iter() {
+            if !clause.is_empty() {
+                return Some(clause[0]);
             }
-            return (true, cnf);
         }
-
-        if cnf.has_empty_clause() {
-            return (false, cnf);
-        }
-        
-        let l = cnf.get_any_literal().unwrap();
-
-        let (true_value_clauses, false_value_clauses) = Self::evaluate_on_literal(&mut cnf, l);
-        cnf.remove_clauses_with_literal(l);
-        cnf.add_clauses(&false_value_clauses);
-        let mut result;
-
-        (result, cnf) = Self::solve_dpll(cnf);
-        if result {
-            cnf.add_clause(vec![l]);
-            for literal in eval_set {
-                cnf.add_clause(vec![literal]);
-            }
-            return (result, cnf);
-        }
-
-        cnf.remove_clauses(&false_value_clauses);
-        cnf.add_clauses(&true_value_clauses);
-
-        (result, cnf) = Self::solve_dpll(cnf);
-        if result {
-            cnf.add_clause(vec![l.neg()]);
-            for literal in eval_set {
-                cnf.add_clause(vec![literal]);
-            }
-            return (result, cnf);
-        }
-
-        cnf.remove_clauses(&true_value_clauses);
-        cnf.remove_clauses(&false_value_clauses);
-
-        for clause in true_value_clauses {
-            let mut new_clause = clause.clone();
-            new_clause.push(l);
-            cnf.add_clause(new_clause)
-        }
-
-        for clause in false_value_clauses {
-            let mut new_clause = clause.clone();
-            new_clause.push(l.neg());
-            cnf.add_clause(new_clause)
-        }
-
-
-        (false, cnf)
+        return None;
     }
-
-    pub fn solve(mut cnf: CNF) -> Option<CNF> {
-        let sat;
-        (sat, cnf) = Self::solve_dpll(cnf);
-        match sat {
-            true => Some(cnf),
-            false => None,
-        }
-    }
-
 }

@@ -1,6 +1,6 @@
 use std::fmt::{Debug};
 
-use super::cnf::{CNF, Literal};
+use crate::p::cnf::{CNF, Literal};
 
 pub struct PropositionalFormula {
     formula: String,
