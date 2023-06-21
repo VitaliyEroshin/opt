@@ -1,7 +1,8 @@
-use super::cnf::{CNF, Literal};
 use std::io::{self, BufRead};
 use std::fs::File;
 use rand::Rng;
+
+use crate::p::cnf::{CNF, Literal};
 
 pub fn get_benchmark_cnf(variables: usize, clauses: usize, var_in_clauses: usize) -> CNF {
     let mut cnf = CNF::new();
@@ -18,7 +19,20 @@ pub fn get_benchmark_cnf(variables: usize, clauses: usize, var_in_clauses: usize
     return cnf;
 }
 
-fn parse_clause_from_line(s: String) -> Result<Vec<Literal>, std::io::Error> {
+pub fn get_cnf_from_file(path: &str) -> Result<CNF, std::io::Error> {
+    let file = File::open(path)?;
+    let mut reader = io::BufReader::new(file);
+
+    read_cnf_from_buff(&mut reader)
+}
+
+pub fn get_cnf_from_stdin() -> Result<CNF, std::io::Error> {
+    let mut reader = io::BufReader::new(io::stdin().lock());
+
+    read_cnf_from_buff(&mut reader)
+}
+
+fn parse_clause_from_line(s: &str) -> Result<Vec<Literal>, std::io::Error> {
     let mut clause = Vec::new();
 
     for lit in s.split(" ") {
@@ -38,27 +52,21 @@ fn parse_clause_from_line(s: String) -> Result<Vec<Literal>, std::io::Error> {
     Ok(clause)
 }
 
-fn read_cnf_from_buff<Stream: std::io::Read>(reader: io::BufReader<Stream>) -> Result<CNF, std::io::Error> {
+fn read_cnf_from_buff<Stream: std::io::Read>(reader: &mut io::BufReader<Stream>) -> Result<CNF, std::io::Error> {
+    let mut num_clauses = String::new();
+    reader.read_line(&mut num_clauses)?;
+
+    let num_clauses: i32 = num_clauses.trim().parse().unwrap_or(0);
+
     let mut cnf = CNF::new();
 
-    for line in reader.lines() {
-        let s = line?;
+    for _ in 1..=num_clauses {
+        let mut s = String::new();
+        reader.read_line(&mut s)?;
 
-        cnf.add_clause(parse_clause_from_line(s)?);
+        cnf.add_clause(parse_clause_from_line(s.trim())?);
+
     }
 
     Ok(cnf)
-}
-
-pub fn get_cnf_from_file(path: &str) -> Result<CNF, std::io::Error> {
-    let file = File::open(path)?;
-    let reader = io::BufReader::new(file);
-
-    read_cnf_from_buff(reader)
-}
-
-pub fn get_cnf_from_stdin() -> Result<CNF, std::io::Error> {
-    let reader = io::BufReader::new(io::stdin());
-
-    read_cnf_from_buff(reader)
 }
