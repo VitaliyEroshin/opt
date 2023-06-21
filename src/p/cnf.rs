@@ -7,6 +7,7 @@ pub struct Literal {
     pub sign: bool,
 }
 
+#[derive(Clone)]
 pub struct CNF {
     clauses: HashSet<Vec<Literal>>,
 }
@@ -89,45 +90,24 @@ impl CNF {
         return &mut self.clauses;
     }
 
-    pub fn get_any_literal(&self) -> Option<Literal> {
+    pub fn eval(&self, eval_vec: Vec<Literal>) -> bool {
+        let eval_set = HashSet::<Literal>::from_iter(eval_vec.iter().cloned());
+
         for clause in self.clauses.iter() {
-            if !clause.is_empty() {
-                return Some(clause[0]);
+            if !Self::eval_clause(clause, &eval_set) {
+                return false;
             }
         }
-        return None;
+
+        return true;
     }
 
-    pub fn has_empty_clause(&self) -> bool {
-        for clause in self.clauses.iter() {
-            if clause.is_empty() {
+    fn eval_clause(clause: &Vec<Literal>, eval_set: &HashSet<Literal>) -> bool {
+        for l in clause.iter() {
+            if eval_set.contains(l) {
                 return true;
             }
         }
         return false;
-    }
-
-    pub fn remove_clauses_with_literal(&mut self, l: Literal) {
-        let mut removed_clauses = Vec::new();
-        for clause in self.clauses.iter() {
-            if clause.contains(&l) || clause.contains(&l.neg()) {
-                removed_clauses.push(clause.clone());
-            }
-        }
-        for clause in removed_clauses {
-            self.clauses.remove(&clause);
-        }
-    }
-
-    pub fn remove_clauses(&mut self, clauses: &HashSet<Vec<Literal>>) {
-        for clause in clauses.iter() {
-            self.clauses.remove(clause);
-        }
-    }
-
-    pub fn add_clauses(&mut self, clauses: &HashSet<Vec<Literal>>) {
-        for clause in clauses.iter() {
-            self.clauses.insert(clause.clone());
-        }
     }
 }

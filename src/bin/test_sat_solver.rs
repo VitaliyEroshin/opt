@@ -18,9 +18,13 @@ fn main() {
 
     let solver = solvers::sat::dpll::DPLL{};
 
-    match solver.solve(c) {
+    match solver.solve(c.clone()) {
         Ok(eval_set) => {
-            println!("Evaluation set: {:?}", eval_set);
+            for v in eval_set.iter() {
+                print!("{:?} ", v);
+            }
+            println!("");
+            println!("SAT: {:}", c.eval(eval_set))
         },
         Err(e) => {
             println!("Error when solving: {:}", e.what());
