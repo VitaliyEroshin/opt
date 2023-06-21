@@ -11,44 +11,52 @@ pub struct PPSZ {}
 
 impl Solver for PPSZ {
     fn solve(&self, mut cnf: CNF) -> Result<Vec<Literal>, Error> {
-        Self::bounded_resolve(&mut cnf, 3);
-        match Self::search(&mut cnf, 10000) {
-            None => {
-                return Err(Error::new("Unsatisfiable"))
-            },
-            Some(eval_set) => {
-                return Ok(eval_set);
+        let max_clauses = 500;
+
+        for iteration in 0..10 {
+            if cnf.clauses().len() < 500 {
+                Self::bounded_resolve(&mut cnf, 3, max_clauses);
+            }
+
+            match Self::search(&mut cnf, 100) {
+                None => {},
+                Some(eval_set) => {
+                    return Ok(eval_set);
+                }
             }
         }
+
+        return Err(Error::new("Unsatisfiable"));
     }
 }
 
 impl PPSZ {
-    fn bounded_resolve(g: &mut CNF, s: usize) -> usize {
-        let mut new_clauses: HashSet<Vec<Literal>> = HashSet::new();
+    fn bounded_resolve(g: &mut CNF, s: usize, max_clauses: usize) {
+        let mut clauses: Vec<Vec<Literal>> = g.clauses().iter().cloned().collect();
+        let (mut l, mut r) = (0 as usize, clauses.len());
 
-        for a in g.clauses().iter() {
-            for b in g.clauses().iter() {
-                Self::try_resolve(&mut new_clauses, a, b, s);
+        for it in 0..1 {
+            for i in l..r {
+                for j in 0..r {
+                    let first = clauses[i].clone();
+                    let second = clauses[j].clone();
+                    Self::try_resolve(&mut clauses, g, first, second, s);
+                }
             }
-        }
 
-        let mut added = 0;
-
-        for c in new_clauses.into_iter() {
-            if g.get_clauses().insert(c) {
-                added += 1;
+            if clauses.len() > max_clauses {
+                while clauses.len() > max_clauses {
+                    let c = clauses.pop().unwrap();
+                    g.get_clauses().remove(&c);
+                    
+                }
             }
+
+            (l, r) = (r, clauses.len());
         }
-    
-        added
     }
 
-    fn try_resolve(new_clauses: &mut HashSet<Vec<Literal>>, a: &Vec<Literal>, b: &Vec<Literal>, s: usize) {
-        if a.len() > s || b.len() > s {
-            return;
-        }
-
+    fn try_resolve(clauses: &mut Vec<Vec<Literal>>, g: &mut CNF, a: Vec<Literal>, b: Vec<Literal>, s: usize) {
         for l in b.iter().copied() {
             let resolvent = Self::resolve(a.clone(), b.clone(), l);
 
@@ -61,7 +69,12 @@ impl PPSZ {
                 continue;
             }
 
-            new_clauses.insert(resolvent);
+            if g.clauses().contains(&resolvent) {
+                continue;
+            }
+
+            g.get_clauses().insert(resolvent.clone());
+            clauses.push(resolvent);
         }
     }
 
@@ -87,7 +100,11 @@ impl PPSZ {
     }
 
     fn search(g: &mut CNF, iterations: usize) -> Option<Vec<Literal>> {
-        for _ in 1..=iterations {
+        for _it in 1..=iterations {
+            // if _it % 100 == 0 {
+            //     println!("Iteration {:}", _it);
+            // }
+
             let mut pi: Vec<usize> = (1..=g.var_count()).collect();
             pi.shuffle(&mut rand::thread_rng());
 

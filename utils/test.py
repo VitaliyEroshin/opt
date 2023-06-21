@@ -125,7 +125,7 @@ def check_testcase(cnf, output, time_elapsed, testcase_name=''):
         return False
     
     if output[0] == 'E':
-        print_fail_feedback(output, testcase_name)
+        print_fail_feedback(output.rstrip(), testcase_name)
         return False
     
     values = list(map(int, output.split()))
@@ -157,6 +157,7 @@ def run_testcase(cnf, testcase_name=''):
 
     timer_start = datetime.now()
 
+    # print(("\n".join(get_printable_sat(cnf))))
     p.communicate(("\n".join(get_printable_sat(cnf))).encode())
     p.wait()
 
