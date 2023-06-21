@@ -8,6 +8,7 @@ pub mod io {
 
 pub mod solvers {
     pub mod sat {
+        pub mod ppsz;
         pub mod dpll;
         pub mod solver;
     }

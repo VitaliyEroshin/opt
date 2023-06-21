@@ -27,6 +27,8 @@ impl Solver for DPLL {
 
 impl DPLL {
     fn solve_dpll(mut cnf: CNF) -> (bool, CNF) {
+        // This does not work for some reason lul
+
         let mut eval_set = Vec::<Literal>::new();
         (cnf, eval_set) = Self::unit_propagation(cnf, eval_set);
         cnf = Self::normalize_cnf(cnf);

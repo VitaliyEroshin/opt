@@ -10,6 +10,7 @@ pub struct Literal {
 #[derive(Clone)]
 pub struct CNF {
     clauses: HashSet<Vec<Literal>>,
+    variables: usize,
 }
 
 impl Debug for Literal {
@@ -20,6 +21,13 @@ impl Debug for Literal {
 }
 
 impl Literal {
+    pub fn from_int(i: i32) -> Literal {
+        Literal {
+            var: i.abs() as usize,
+            sign: i < 0
+        }
+    }
+
     pub fn new(s: &str) -> Result<Literal, std::num::ParseIntError> {
         let i = s.parse::<i32>()?;
         Ok(Literal {
@@ -33,6 +41,10 @@ impl Literal {
             var: self.var,
             sign: !self.sign,
         };
+    }
+
+    pub fn get_var(&self) -> usize {
+        return self.var;
     }
 }
 
@@ -77,17 +89,29 @@ impl CNF {
     pub fn new() -> CNF {
         CNF {
             clauses: HashSet::new(),
+            variables: 0,
         }
+    }
+
+    pub fn var_count(&self) -> usize {
+        return self.variables;
     }
 
     pub fn add_clause(&mut self, mut clause: Vec<Literal>) {
         clause.sort();
         clause.dedup();
+        for v in clause.iter() {
+            self.variables = std::cmp::max(self.variables, v.get_var())
+        }
         self.clauses.insert(clause);
     }
 
     pub fn get_clauses(&mut self) -> &mut HashSet<Vec<Literal>> {
-        return &mut self.clauses;
+        &mut self.clauses
+    }
+
+    pub fn clauses(&self) -> &HashSet<Vec<Literal>> {
+        &self.clauses
     }
 
     pub fn eval(&self, eval_vec: Vec<Literal>) -> bool {

@@ -16,15 +16,13 @@ fn main() {
         }
     }
 
-    let solver = solvers::sat::dpll::DPLL{};
+    let solver = solvers::sat::ppsz::PPSZ{};
 
     match solver.solve(c.clone()) {
         Ok(eval_set) => {
             for v in eval_set.iter() {
                 print!("{:?} ", v);
             }
-            println!("");
-            println!("SAT: {:}", c.eval(eval_set))
         },
         Err(e) => {
             println!("Error when solving: {:}", e.what());
