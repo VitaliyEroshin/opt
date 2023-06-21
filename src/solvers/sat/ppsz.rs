@@ -7,18 +7,54 @@ use rand::{distributions::Uniform, Rng};
 pub use super::solver::{Solver, Error};
 use crate::p::cnf::{CNF, Literal};
 
-pub struct PPSZ {}
+pub struct PPSZ {
+    max_clauses: usize,
+    max_resolve_iterations: usize,
+    max_search_iterations: usize,
+    max_clause_size: usize,
+}
 
 impl Solver for PPSZ {
-    fn solve(&self, mut cnf: CNF) -> Result<Vec<Literal>, Error> {
-        let max_clauses = 500;
+    fn solve(&self, cnf: CNF) -> Result<Vec<Literal>, Error> {
+        self.solve_ppsz(cnf)
+    }
+}
 
-        for iteration in 0..10 {
-            if cnf.clauses().len() < 500 {
-                Self::bounded_resolve(&mut cnf, 3, max_clauses);
+impl PPSZ {
+    pub fn new() -> PPSZ {
+        PPSZ {
+            max_clauses: 500,
+            max_resolve_iterations: 10,
+            max_search_iterations: 100,
+            max_clause_size: 3,
+        }
+    }
+
+    pub fn set_max_clauses(&mut self, value: usize) {
+        self.max_clauses = value;
+    }
+
+    pub fn set_max_resolve_iterations(&mut self, value: usize) {
+        self.max_resolve_iterations = value;
+    }
+
+    pub fn set_max_search_iterations(&mut self, value: usize) {
+        self.max_search_iterations = value;
+    }
+
+    pub fn set_max_clause_size(&mut self, value: usize) {
+        self.max_clause_size = value;
+    }
+
+    pub fn solve_ppsz(&self, mut cnf: CNF) -> Result<Vec<Literal>, Error> {
+        let max_clauses = self.max_clauses;
+
+        for iteration in 0..self.max_resolve_iterations {
+            if cnf.clauses().len() < self.max_clauses {
+                Self::bounded_resolve(&mut cnf, self.max_clause_size, max_clauses);
             }
 
-            match Self::search(&mut cnf, 100) {
+            match Self::search(&mut cnf, self.max_search_iterations) {
                 None => {},
                 Some(eval_set) => {
                     return Ok(eval_set);
@@ -28,9 +64,7 @@ impl Solver for PPSZ {
 
         return Err(Error::new("Unsatisfiable"));
     }
-}
 
-impl PPSZ {
     fn bounded_resolve(g: &mut CNF, s: usize, max_clauses: usize) {
         let mut clauses: Vec<Vec<Literal>> = g.clauses().iter().cloned().collect();
         let (mut l, mut r) = (0 as usize, clauses.len());
@@ -101,10 +135,6 @@ impl PPSZ {
 
     fn search(g: &mut CNF, iterations: usize) -> Option<Vec<Literal>> {
         for _it in 1..=iterations {
-            // if _it % 100 == 0 {
-            //     println!("Iteration {:}", _it);
-            // }
-
             let mut pi: Vec<usize> = (1..=g.var_count()).collect();
             pi.shuffle(&mut rand::thread_rng());
 

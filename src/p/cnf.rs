@@ -46,6 +46,10 @@ impl Literal {
     pub fn get_var(&self) -> usize {
         return self.var;
     }
+
+    pub fn is_negative(&self) -> bool {
+        return self.sign;
+    }
 }
 
 fn print_vec_with_separator(literals: &Vec<Literal>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

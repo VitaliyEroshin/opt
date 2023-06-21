@@ -16,7 +16,7 @@ fn main() {
         }
     }
 
-    let solver = solvers::sat::ppsz::PPSZ{};
+    let solver = solvers::sat::ppsz::PPSZ::new();
 
     match solver.solve(c.clone()) {
         Ok(eval_set) => {
