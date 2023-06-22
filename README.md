@@ -6,13 +6,19 @@ This is a framework, you should not run it, lol!
 
 However, you can run some tests from `utils` folder.
 ### SAT tests
-The SAT solving pipeline is located in `./src/bin/test_sat_solver.rs`, you can modify it if you want. Testing can be produced by running a python script, that reads and parses `.cnf` files in the `./utils/testcases` folder. It checks whether the algorithm found a proper evaluation set or not and prints the elapsed time.
+Testing can be produced by running a python script. You need to provide which solver do you want to test using `--solver` option. It can be `dpll` or `ppsz`. You can optionally provide a path to folder with you own `.cnf` tests using `--testcases` option.
 
+For example:
 ```shell
 # Assuming we are in the repository folder
 
 cd utils
-python3 test.py
+python3 test.py --solver dpll
+```
+
+You can also run solvers as cargo targets like so:
+```shell
+cargo run --bin test_ppsz_solver < input.txt
 ```
 
 Also, please, make sure, `cargo` is installed on your device.
