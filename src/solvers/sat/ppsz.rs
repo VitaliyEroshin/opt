@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::{mem::swap};
 
 use rand::seq::SliceRandom;
@@ -12,6 +11,7 @@ pub struct PPSZ {
     max_resolve_iterations: usize,
     max_search_iterations: usize,
     max_clause_size: usize,
+    bounded_resolve_iterations: usize,
 }
 
 impl Solver for PPSZ {
@@ -27,6 +27,7 @@ impl PPSZ {
             max_resolve_iterations: 10,
             max_search_iterations: 100,
             max_clause_size: 3,
+            bounded_resolve_iterations: 2,
         }
     }
 
@@ -46,12 +47,16 @@ impl PPSZ {
         self.max_clause_size = value;
     }
 
+    pub fn set_bounded_resolve_iterations(&mut self, value: usize) {
+        self.bounded_resolve_iterations = value;
+    }
+
     pub fn solve_ppsz(&self, mut cnf: CNF) -> Result<Vec<Literal>, Error> {
         let max_clauses = self.max_clauses;
 
-        for iteration in 0..self.max_resolve_iterations {
+        for _it in 0..self.max_resolve_iterations {
             if cnf.clauses().len() < self.max_clauses {
-                Self::bounded_resolve(&mut cnf, self.max_clause_size, max_clauses);
+                Self::bounded_resolve(&self, &mut cnf, self.max_clause_size, max_clauses);
             }
 
             match Self::search(&mut cnf, self.max_search_iterations) {
@@ -65,11 +70,11 @@ impl PPSZ {
         return Err(Error::new("Unsatisfiable"));
     }
 
-    fn bounded_resolve(g: &mut CNF, s: usize, max_clauses: usize) {
+    fn bounded_resolve(&self, g: &mut CNF, s: usize, max_clauses: usize) {
         let mut clauses: Vec<Vec<Literal>> = g.clauses().iter().cloned().collect();
         let (mut l, mut r) = (0 as usize, clauses.len());
 
-        for it in 0..1 {
+        for _it in 0..self.bounded_resolve_iterations {
             for i in l..r {
                 for j in 0..r {
                     let first = clauses[i].clone();
