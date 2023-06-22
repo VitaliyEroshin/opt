@@ -12,6 +12,10 @@ impl Solver for DPLL {
 }
 
 impl DPLL {
+    pub fn new() -> DPLL {
+        DPLL {}
+    }
+
     fn simplify_cnf(cnf: &mut CNF) -> Result<Vec<Literal>, Error> {
         let mut eval_set = Vec::<Literal>::new();
 
@@ -32,7 +36,7 @@ impl DPLL {
         return Ok(eval_set);
     }
 
-    fn solve_dpll(mut cnf: CNF) -> Result<Vec<Literal>, Error> {
+    pub fn solve_dpll(mut cnf: CNF) -> Result<Vec<Literal>, Error> {
         if Self::has_empty_clause(cnf.get_clauses()) {
             return Err(Error::new("Unsatisfied"));
         }
