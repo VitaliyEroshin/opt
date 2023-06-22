@@ -2,7 +2,6 @@ import os
 import subprocess
 from datetime import datetime
 import argparse
-from ortools.sat.python import cp_model
 
 class Variable:
     def __init__(self, number, negate):
@@ -21,6 +20,12 @@ class Sat:
     def call(self, arr):
         return all([any([x.call(arr) for x in cl]) for cl in self.clauses])
 
+
+"""
+    # You can uncomment this if you want to use CpSatSolver as solver
+    # python3 test.py --solver python_cp
+
+from ortools.sat.python import cp_model
 
 class CpSatSolver:
     def solve(self, sat):
@@ -58,7 +63,7 @@ class CpSatSolver:
             eval_set.append(str(i * (-1) ** (not bool(solver.Value(v[i])))))
 
         return " ".join(map(str, eval_set))
-
+"""
 
 class OptExternalSatSolver:
     def __init__(self, solver_name):
