@@ -12,7 +12,7 @@ The SAT solving pipeline is located in `./src/bin/test_sat_solver.rs`, you can m
 # Assuming we are in the repository folder
 
 cd utils
-python3 main.py
+python3 test.py
 ```
 
 Also, please, make sure, `cargo` is installed on your device.
