@@ -7,12 +7,15 @@ use rand::{distributions::Uniform, Rng};
 pub use super::solver::{Solver, Error};
 use crate::p::cnf::{CNF, Literal};
 
+#[derive(Clone)]
 pub struct PPSZ {
     max_clauses: usize,
     max_resolve_iterations: usize,
     max_search_iterations: usize,
     max_clause_size: usize,
     bounded_resolve_iterations: usize,
+
+    potential_resolve_clauses_with_literal: HashMap<Literal, HashSet<usize>>
 }
 
 #[derive(Clone)]
@@ -131,13 +134,10 @@ impl ExtendedCNF {
         let mut literals = HashSet::<Literal>::new();
 
         for l in self.clauses_with_literal.keys().into_iter() {
-            let mut literal = l.clone();
-
-            if literal.is_negative() {
-                literal = literal.neg();
-            }
+            let literal = l.clone();
 
             literals.insert(literal);
+            literals.insert(literal.neg());
         }
     
         literals.into_iter().collect()
@@ -195,18 +195,25 @@ impl ExtendedCNF {
 
 impl Solver for PPSZ {
     fn solve(&self, cnf: CNF) -> Result<Vec<Literal>, Error> {
-        self.solve_ppsz(cnf)
+        let mut s = (*self).clone();
+
+        let n = cnf.var_count();
+        s.max_clauses = n * n * n / 5;  // Magic constant here
+
+        Self::solve_ppsz(&mut s, cnf)
     }
 }
 
 impl PPSZ {
     pub fn new() -> PPSZ {
         PPSZ {
-            max_clauses: 10000,
-            max_resolve_iterations: 2,
+            max_clauses: 15000,
+            max_resolve_iterations: 40,
             max_search_iterations: 1000,
             max_clause_size: 3,
             bounded_resolve_iterations: 2,
+
+            potential_resolve_clauses_with_literal: HashMap::<Literal, HashSet<usize>>::new()
         }
     }
 
@@ -230,11 +237,14 @@ impl PPSZ {
         self.bounded_resolve_iterations = value;
     }
 
-    pub fn solve_ppsz(&self, mut cnf: CNF) -> Result<Vec<Literal>, Error> {
+    pub fn solve_ppsz(&mut self, mut cnf: CNF) -> Result<Vec<Literal>, Error> {
         let mut ext_cnf = ExtendedCNF::from_cnf(&mut cnf);
+
+        self.potential_resolve_clauses_with_literal = ext_cnf.clauses_with_literal.clone();
 
         for _i in 0..self.max_resolve_iterations {
             self.bounded_resolve(&mut ext_cnf, self.max_clause_size);
+
             if ext_cnf.unsatisified_clauses > self.max_clauses {
                 break;
             }
@@ -249,7 +259,7 @@ impl PPSZ {
         return Err(Error::new("Unsatisfiable"));
     }
 
-    fn bounded_resolve(&self, g: &mut ExtendedCNF, s: usize) {
+    fn bounded_resolve(&mut self, g: &mut ExtendedCNF, s: usize) {
         let literals = g.get_literals();
 
         let mut new_clauses = Vec::<Vec<Literal>>::new();
@@ -257,7 +267,7 @@ impl PPSZ {
         for l in literals.into_iter() {
             
             let with_l;
-            match g.clauses_with(l) {
+            match self.potential_resolve_clauses_with_literal.get(&l) {
                 None => { continue },
                 Some(clauses) => { with_l = clauses }
             };
@@ -293,7 +303,21 @@ impl PPSZ {
             }
         }
 
+        self.potential_resolve_clauses_with_literal.clear();
         for clause in new_clauses.iter() {
+            if g.contains(clause) {
+                continue;
+            }
+
+            if clause.len() > 1 {
+                for l in clause.iter() {
+                    self.potential_resolve_clauses_with_literal
+                        .entry(l.clone())
+                        .or_insert(HashSet::new())
+                        .insert(g.clauses.len());
+                }
+            }
+            
             g.add_clause(clause.clone());
         }
 
